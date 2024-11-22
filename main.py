@@ -52,3 +52,9 @@ print(conf_matrix)
 print("\nClassification Report:")
 print(classification_rep)
 print("\nF1 Score (Weighted):", f1)
+
+# In kết quả dự đoán cho từng hàng trong test.csv
+test_data['Prediction'] = y_test
+test_data['Prediction_Label'] = test_data['Prediction'].apply(lambda x: 'Cho vay' if x == 1 else 'Không cho vay')
+print("\nKết quả dự đoán trên file test.csv:")
+print(test_data[['person_age', 'loan_status', 'Prediction_Label']])
