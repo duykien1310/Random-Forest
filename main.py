@@ -121,7 +121,7 @@ X_train = imputer.fit_transform(X_train)
 X_test = imputer.transform(X_test)
 
 # Huấn luyện mô hình
-forest = random_forest_train(X_train, y_train, n_trees=10, max_depth=10, min_samples_split=10, n_features=5)
+forest = random_forest_train(X_train, y_train, n_trees=100, max_depth=15, min_samples_split=30, n_features=4)
 
 # Dự đoán
 y_pred = random_forest_predict(forest, X_test)
