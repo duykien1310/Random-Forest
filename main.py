@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score
 
 # Hàm tính Gini Index
 def gini_index(groups, classes):
@@ -42,6 +42,8 @@ def best_split(X, y, classes, n_features=None):
         thresholds = np.unique(X[:, feature_idx])
         for threshold in thresholds:
             left, right = split_data(X, y, feature_idx, threshold)
+            if len(left) == 0 or len(right) == 0:
+                continue
             gini = gini_index([left, right], classes)
             if gini < best_gini:
                 best_gini = gini
@@ -57,7 +59,7 @@ def build_tree(X, y, max_depth, min_samples_split, depth=0, n_features=None):
         return {'label': np.bincount(y).argmax()}
     
     feature, threshold, groups = best_split(X, y, classes, n_features)
-    if feature is None:
+    if feature is None or not groups or any(len(group) == 0 for group in groups):
         return {'label': np.bincount(y).argmax()}
     
     left, right = groups
@@ -93,15 +95,60 @@ def random_forest_predict(forest, X):
         predictions.append(np.bincount(tree_preds).argmax())
     return np.array(predictions)
 
+# Đánh giá mô hình
+def evaluate_model(y_true, y_pred):
+    """
+    Đánh giá mô hình dựa trên các độ đo:
+    - Confusion Matrix
+    - Precision, Recall, F1-score
+    """
+    print("### Đánh giá mô hình ###")
+    
+    # Confusion Matrix
+    cm = confusion_matrix(y_true, y_pred)
+    print("Confusion Matrix:\n", cm)
+    
+    # Tính Precision, Recall, và F1-score
+    precision = precision_score(y_true, y_pred, average='weighted')
+    recall = recall_score(y_true, y_pred, average='weighted')
+    f1 = f1_score(y_true, y_pred, average='weighted')
+    
+    print("\nPrecision (Weighted):", precision)
+    print("Recall (Weighted):", recall)
+    print("F1-Score (Weighted):", f1)
+    
+    # In chi tiết từng lớp trong Classification Report
+    report = classification_report(y_true, y_pred)
+    print("\nClassification Report:\n", report)
+    
+    return {
+        "confusion_matrix": cm,
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1
+    }
+
 # Đọc dữ liệu
 train_data = pd.read_csv('train.csv')
 test_data = pd.read_csv('test.csv')
 
-# Tiền xử lý dữ liệu
-categorical_columns = [
-    'person_gender', 'person_education', 'person_home_ownership', 
-    'loan_intent', 'previous_loan_defaults_on_file'
+# Chọn các feature quan trọng
+selected_features = [
+    'previous_loan_defaults_on_file', 
+    'loan_percent_income', 
+    'loan_int_rate', 
+    'person_income', 
+    'person_home_ownership', 
+    'loan_intent', 
+    'credit_score'
 ]
+
+# Tiền xử lý dữ liệu
+train_data = train_data[selected_features + ['loan_status']]
+test_data = test_data[selected_features + ['loan_status']]
+
+# Mã hóa các cột phân loại
+categorical_columns = ['person_home_ownership', 'loan_intent', 'previous_loan_defaults_on_file']
 
 label_encoders = {}
 for col in categorical_columns:
@@ -121,12 +168,10 @@ X_train = imputer.fit_transform(X_train)
 X_test = imputer.transform(X_test)
 
 # Huấn luyện mô hình
-forest = random_forest_train(X_train, y_train, n_trees=100, max_depth=15, min_samples_split=30, n_features=4)
+forest = random_forest_train(X_train, y_train, n_trees=100, max_depth=15, min_samples_split=30, n_features=3)
 
 # Dự đoán
 y_pred = random_forest_predict(forest, X_test)
 
-# Đánh giá mô hình
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-print("Classification Report:\n", classification_report(y_test, y_pred))
+# Đánh giá model
+evaluation_results = evaluate_model(y_test, y_pred)
